@@ -1,0 +1,134 @@
+const q = (selector) => {
+  return document.querySelector(selector);
+};
+
+let socket = {};
+
+const frm = q("#frm");
+const userDiv = q("#user");
+const usersList = q("#userList");
+const chatDiv = q("#chat");
+const txtUser = q("#txtUser");
+const btnLeave = q("#btnLeave");
+const btnTweet = q("#btnTweet");
+const txtTweet = q("#txtTweet");
+const chatcontainer = q("#chatcontainer");
+const now = new Date().toISOString();
+
+let userList = [];
+let currentUser = "";
+
+frm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  currentUser = txtUser.value.trim();
+
+  socket = io();
+
+  // socket.on("message", (message) => {
+  //   console.log(message);
+  // });
+
+  socket.emit(
+    "userJoin",
+    JSON.stringify({
+      user: txtUser.value.trim(),
+    })
+  );
+
+  socket.on("userJoined", () => {
+    userDiv.classList.toggle("hide");
+    chatDiv.classList.toggle("hide");
+  });
+  socket.on("chatMessageBroadcast", (tweet) => {
+    const userMsg = JSON.parse(tweet).tweetText;
+    const tweetTime = userMsg.timestamp
+      ? timeAgo(new Date(userMsg.timestamp))
+      : "just now";
+
+    const cleanTweet = userMsg.tweet.replace(/"/g, "&quot;");
+
+    chatcontainer.innerHTML =
+      `
+      <div class="card mb-4 shadow-sm border border-secondary rounded">
+        <div class="card-body px-4 py-3">
+          <p class="card-subtitle mb-2 text-muted">
+            <b>@${userMsg.user}</b> · <span class="text-secondary">${tweetTime}</span>
+          </p>
+          <p class="card-text">${userMsg.tweet}</p>
+          <button class="retweetBtn btn btn-sm btn-outline-primary"
+            data-original-user="${userMsg.user}" 
+            data-original-tweet="${cleanTweet}">
+            🔁 Retweet
+          </button>
+        </div>
+      </div>
+      ` + chatcontainer.innerHTML;
+  });
+
+  socket.on("userDisconnect", (disconnectedUser) => {
+    disconnectedUser = JSON.parse(disconnectedUser);
+    const leavingUser = userList.find((user) => user.id == disconnectedUser.id);
+    userList = userList.filter((user) => user.id != disconnectedUser.id);
+    loadUsers(userList);
+
+    chatcontainer.innerHTML += `<div class="leftChat">${leavingUser.user} has left the chat</div>`;
+  });
+});
+
+btnLeave.onclick = (e) => {
+  userDiv.classList.toggle("hide");
+  chatDiv.classList.toggle("hide");
+  txtUser.value = "";
+  txtTweet.value = "";
+  socket.disconnect();
+};
+
+btnTweet.onclick = (e) => {
+  const tweet = txtTweet.value;
+  txtTweet.value = "";
+
+  socket.emit(
+    "tweetText",
+    JSON.stringify({
+      user: currentUser,
+      tweet,
+      timestamp: now,
+    })
+  );
+};
+
+chatcontainer.addEventListener("click", function (e) {
+  if (e.target && e.target.classList.contains("retweetBtn")) {
+    const originalUser = e.target.getAttribute("data-original-user");
+    let originalTweet = e.target.getAttribute("data-original-tweet");
+
+    let retweetMsg;
+
+    if (originalTweet.startsWith("Retweeted")) {
+      retweetMsg = originalTweet;
+    } else {
+      retweetMsg = `Retweeted <b>@${originalUser}</b> <br>${originalTweet}`;
+    }
+
+    socket.emit(
+      "tweetText",
+      JSON.stringify({
+        user: currentUser,
+        tweet: retweetMsg,
+      })
+    );
+  }
+});
+
+function timeAgo(date) {
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
