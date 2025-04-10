@@ -4,29 +4,24 @@ const q = (selector) => {
 
 let socket = {};
 
-const frm = q("#frm");
+const form = q("#form");
 const userDiv = q("#user");
-const usersList = q("#userList");
-const chatDiv = q("#chat");
+const tweetsDiv = q("#tweets");
 const txtUser = q("#txtUser");
 const btnLeave = q("#btnLeave");
 const btnTweet = q("#btnTweet");
 const txtTweet = q("#txtTweet");
-const chatcontainer = q("#chatcontainer");
+const tweetcontainer = q("#tweetcontainer");
 const now = new Date().toISOString();
 
 let userList = [];
 let currentUser = "";
 
-frm.addEventListener("submit", (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
   currentUser = txtUser.value.trim();
 
   socket = io();
-
-  // socket.on("message", (message) => {
-  //   console.log(message);
-  // });
 
   socket.emit(
     "userJoin",
@@ -37,7 +32,7 @@ frm.addEventListener("submit", (e) => {
 
   socket.on("userJoined", () => {
     userDiv.classList.toggle("hide");
-    chatDiv.classList.toggle("hide");
+    tweetsDiv.classList.toggle("hide");
   });
 
   socket.on("chatMessageBroadcast", (tweet) => {
@@ -54,7 +49,7 @@ frm.addEventListener("submit", (e) => {
 
 btnLeave.onclick = (e) => {
   userDiv.classList.toggle("hide");
-  chatDiv.classList.toggle("hide");
+  tweetsDiv.classList.toggle("hide");
   txtUser.value = "";
   txtTweet.value = "";
   socket.disconnect();
@@ -74,7 +69,7 @@ btnTweet.onclick = (e) => {
   );
 };
 
-chatcontainer.addEventListener("click", function (e) {
+tweetcontainer.addEventListener("click", function (e) {
   if (e.target && e.target.classList.contains("retweetBtn")) {
     const originalUser = e.target.getAttribute("data-original-user");
     let originalTweet = e.target.getAttribute("data-original-tweet");
@@ -117,7 +112,7 @@ function displayTweet(userMsg) {
 
   const cleanTweet = userMsg.tweet.replace(/"/g, "&quot;");
 
-  chatcontainer.innerHTML =
+  tweetcontainer.innerHTML =
     `
     <div class="card mb-4 shadow-sm border border-secondary rounded">
       <div class="card-body px-4 py-3">
@@ -132,5 +127,5 @@ function displayTweet(userMsg) {
         </button>
       </div>
     </div>
-    ` + chatcontainer.innerHTML;
+    ` + tweetcontainer.innerHTML;
 }

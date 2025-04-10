@@ -8,9 +8,12 @@ const xss = require("xss");
 const PORT = process.env.PORT || 2000;
 
 app.use(express.static(path.join(__dirname, "public")));
+
 app.use(
-  "/bootstrap",
-  express.static(__dirname + "/node_modules/bootstrap/dist")
+  "/css",
+  express.static(
+    path.join(__dirname, "..", "..", "node_modules", "bootstrap", "dist", "css")
+  )
 );
 
 const server = http.createServer(app);
