@@ -120,11 +120,17 @@ function displayTweet(userMsg) {
           <b>@${userMsg.user}</b> · <span class="text-secondary">${tweetTime}</span>
         </p>
         <p class="card-text">${userMsg.tweet}</p>
+
         <button class="retweetBtn btn btn-sm btn-outline-primary"
           data-original-user="${userMsg.user}" 
           data-original-tweet="${cleanTweet}">
           🔁 Retweet
         </button>
+
+        <button class="likeBtn btn btn-sm btn-outline-primary"
+          🔁 Like
+        </button>
+        
       </div>
     </div>
     ` + tweetcontainer.innerHTML;
