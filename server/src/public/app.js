@@ -39,39 +39,16 @@ frm.addEventListener("submit", (e) => {
     userDiv.classList.toggle("hide");
     chatDiv.classList.toggle("hide");
   });
+
   socket.on("chatMessageBroadcast", (tweet) => {
     const userMsg = JSON.parse(tweet).tweetText;
-    const tweetTime = userMsg.timestamp
-      ? timeAgo(new Date(userMsg.timestamp))
-      : "just now";
-
-    const cleanTweet = userMsg.tweet.replace(/"/g, "&quot;");
-
-    chatcontainer.innerHTML =
-      `
-      <div class="card mb-4 shadow-sm border border-secondary rounded">
-        <div class="card-body px-4 py-3">
-          <p class="card-subtitle mb-2 text-muted">
-            <b>@${userMsg.user}</b> · <span class="text-secondary">${tweetTime}</span>
-          </p>
-          <p class="card-text">${userMsg.tweet}</p>
-          <button class="retweetBtn btn btn-sm btn-outline-primary"
-            data-original-user="${userMsg.user}" 
-            data-original-tweet="${cleanTweet}">
-            🔁 Retweet
-          </button>
-        </div>
-      </div>
-      ` + chatcontainer.innerHTML;
+    displayTweet(userMsg);
   });
 
-  socket.on("userDisconnect", (disconnectedUser) => {
-    disconnectedUser = JSON.parse(disconnectedUser);
-    const leavingUser = userList.find((user) => user.id == disconnectedUser.id);
-    userList = userList.filter((user) => user.id != disconnectedUser.id);
-    loadUsers(userList);
-
-    chatcontainer.innerHTML += `<div class="leftChat">${leavingUser.user} has left the chat</div>`;
+  socket.on("tweetHistory", (allTweets) => {
+    allTweets.forEach((tweetObj) => {
+      displayTweet(tweetObj);
+    });
   });
 });
 
@@ -131,4 +108,29 @@ function timeAgo(date) {
   if (hours < 24) return `${hours} hr ago`;
   const days = Math.floor(hours / 24);
   return `${days} day${days > 1 ? "s" : ""} ago`;
+}
+
+function displayTweet(userMsg) {
+  const tweetTime = userMsg.timestamp
+    ? timeAgo(new Date(userMsg.timestamp))
+    : "just now";
+
+  const cleanTweet = userMsg.tweet.replace(/"/g, "&quot;");
+
+  chatcontainer.innerHTML =
+    `
+    <div class="card mb-4 shadow-sm border border-secondary rounded">
+      <div class="card-body px-4 py-3">
+        <p class="card-subtitle mb-2 text-muted">
+          <b>@${userMsg.user}</b> · <span class="text-secondary">${tweetTime}</span>
+        </p>
+        <p class="card-text">${userMsg.tweet}</p>
+        <button class="retweetBtn btn btn-sm btn-outline-primary"
+          data-original-user="${userMsg.user}" 
+          data-original-tweet="${cleanTweet}">
+          🔁 Retweet
+        </button>
+      </div>
+    </div>
+    ` + chatcontainer.innerHTML;
 }

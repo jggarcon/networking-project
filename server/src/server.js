@@ -15,39 +15,46 @@ app.use(
 
 const server = http.createServer(app);
 const io = socketio(server);
+const tweets = [];
 
-let users = [];
+//let users = [];
 
 io.on("connection", (socket) => {
+  // when a new user joins
   socket.on("userJoin", (tweet) => {
     const { user } = JSON.parse(tweet);
+
+    // send the tweets history to the new user
+    socket.emit("tweetHistory", tweets);
+
     newUser(user, socket, io);
   });
 
+  // this say: when someone sends a new tweet
   socket.on("tweetText", (tweetText) => {
     tweetText = JSON.parse(tweetText);
+
+    // clean up the tweet using xss
+    const cleanTweet = {
+      user: tweetText.user,
+      tweet: xss(tweetText.tweet),
+    };
+
+    // store the tweet in memory
+    tweets.push(cleanTweet);
+
+    // broadcast to all users
     io.sockets.emit(
       "chatMessageBroadcast",
-      JSON.stringify({
-        tweetText: { user: tweetText.user, tweet: xss(tweetText.tweet) },
-      })
-    );
-  });
-
-  socket.on("disconnect", () => {
-    users = users.filter((user) => user.id != socket.id);
-    io.sockets.emit(
-      "userDisconnect",
-      JSON.stringify({
-        id: socket.id,
-      })
+      JSON.stringify({ tweetText: cleanTweet })
     );
   });
 });
 
 const newUser = (user, socket, io) => {
-  users.push({ user, id: socket.id });
+  //users.push({ user, id: socket.id });
   socket.emit("userJoined");
+  socket.emit("tweetHistory", tweets);
 };
 
 server.listen(PORT, () => {
