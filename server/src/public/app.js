@@ -19,6 +19,7 @@ let currentUser = "";
 
 window.onload = () => {
   socket = io();
+  setupSocketListeners();
 
   // Ask server if a session exists
   socket.on("userJoined", (user) => {
@@ -172,5 +173,11 @@ function setupSocketListeners() {
   socket.on("chatMessageBroadcast", (tweet) => {
     const userMsg = JSON.parse(tweet).tweetText;
     displayTweet(userMsg);
+  });
+
+  socket.on("usernameTaken", () => {
+    alert("❌ Username already in use. Please choose another.");
+    txtUser.value = "";
+    txtUser.focus();
   });
 }

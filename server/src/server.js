@@ -27,12 +27,13 @@ app.use(
     path.join(__dirname, "..", "..", "node_modules", "bootstrap", "dist", "css")
   )
 );
-
+const activeUsers = new Set();
 const server = http.createServer(app);
 const io = socketio(server);
 const tweets = [];
 
 //let users = [];
+//using set instead
 
 io.use((socket, next) => {
   sessionMiddleware(socket.request, {}, next);
@@ -40,23 +41,32 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   const req = socket.request;
-  console.log("🧠 Session on connect:", req.session);
 
-  // 🔁 If the user is already stored in session, auto-log them in
+  // if the user is already stored in session, auto-log them in
   if (req.session.username) {
     const user = req.session.username;
     socket.emit("userJoined", user);
     socket.emit("tweetHistory", tweets);
   }
 
-  // 🆕 When a new user joins
+  //  when a new user joins
   socket.on("userJoin", (tweet) => {
-    console.log("👉 userJoin received:", tweet);
     const { user } = JSON.parse(tweet);
+
+    console.log("🧠 userJoin attempt:", user);
+    console.log("🚫 activeUsers currently:", [...activeUsers]);
+
+    if (activeUsers.has(user)) {
+      console.log("❌ Username taken:", user);
+      socket.emit("usernameTaken");
+      return;
+    }
 
     // store user in session
     req.session.username = user;
-    req.session.save(); // important: make sure it's saved
+    req.session.save();
+
+    activeUsers.add(user);
 
     socket.emit("userJoined", user);
     socket.emit("tweetHistory", tweets);
