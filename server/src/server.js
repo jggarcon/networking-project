@@ -94,7 +94,7 @@ io.on("connection", (socket) => {
   socket.on("logout", () => {
     socket.request.session.destroy((err) => {
       if (err) {
-        console.error("❌ Failed to destroy session:", err);
+        console.error("Failed to destroy session:", err);
       } else {
         console.log("✅ Session destroyed");
       }
