@@ -20,31 +20,12 @@ let currentUser = "";
 window.onload = () => {
   socket = io();
   setupSocketListeners();
-
-  // Ask server if a session exists
-  socket.on("userJoined", (user) => {
-    if (user) {
-      currentUser = user;
-      userDiv.classList.add("hide");
-      tweetsDiv.classList.remove("hide");
-    }
-  });
-
-  socket.on("tweetHistory", (allTweets) => {
-    allTweets.forEach((tweetObj) => {
-      displayTweet(tweetObj);
-    });
-  });
-
-  socket.on("chatMessageBroadcast", (tweet) => {
-    const userMsg = JSON.parse(tweet).tweetText;
-    displayTweet(userMsg);
-  });
 };
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   currentUser = txtUser.value.trim();
+  const avatarUrl = q("#avatarUrl").value.trim();
 
   if (!socket || socket.disconnected) {
     socket = io(); // reconnect
@@ -55,6 +36,7 @@ form.addEventListener("submit", (e) => {
     "userJoin",
     JSON.stringify({
       user: currentUser,
+      avatar: avatarUrl,
     })
   );
 });
@@ -123,12 +105,17 @@ function displayTweet(userMsg) {
     : "just now";
 
   const cleanTweet = userMsg.tweet.replace(/"/g, "&quot;");
+  const avatar =
+    userMsg.avatar ||
+    "https://api.dicebear.com/9.x/croodles-neutral/svg?seed=Easton";
 
   tweetcontainer.innerHTML =
     `
     <div class="card mb-4 shadow-sm border border-secondary rounded">
       <div class="card-body px-4 py-3">
+         
         <p class="card-subtitle mb-2 text-muted">
+        <img src="${avatar}" alt="avatar" class="rounded-circle" width="40" height="40" />
           <b>@${userMsg.user}</b> · <span class="text-secondary">${tweetTime}</span>
         </p>
         <p class="card-text">${userMsg.tweet}</p>
@@ -148,18 +135,23 @@ function displayTweet(userMsg) {
     ` + tweetcontainer.innerHTML;
 }
 
-//const btnLogout = document.getElementById("btnLogout");
-
 btnLogout.addEventListener("click", () => {
   socket.emit("logout");
-
+  socket.disconnect();
   userDiv.classList.remove("hide");
   tweetsDiv.classList.add("hide");
   txtUser.value = "";
 });
 
 function setupSocketListeners() {
-  socket.on("userJoined", (user) => {
+  socket.off("userJoined");
+  socket.off("tweetHistory");
+  socket.off("chatMessageBroadcast");
+  socket.off("usernameTaken");
+
+  socket.on("userJoined", ({ user, avatar }) => {
+    currentUser = user;
+    currentAvatar = avatar;
     userDiv.classList.add("hide");
     tweetsDiv.classList.remove("hide");
   });

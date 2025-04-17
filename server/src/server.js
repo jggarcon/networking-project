@@ -32,9 +32,6 @@ const server = http.createServer(app);
 const io = socketio(server);
 const tweets = [];
 
-//let users = [];
-//using set instead
-
 io.use((socket, next) => {
   sessionMiddleware(socket.request, {}, next);
 });
@@ -44,31 +41,33 @@ io.on("connection", (socket) => {
 
   // if the user is already stored in session, auto-log them in
   if (req.session.username) {
-    const user = req.session.username;
-    socket.emit("userJoined", user);
+    socket.emit("userJoined", {
+      user: req.session.username,
+      avatar: req.session.avatar || "",
+    });
     socket.emit("tweetHistory", tweets);
   }
 
   //  when a new user joins
   socket.on("userJoin", (tweet) => {
-    const { user } = JSON.parse(tweet);
-
-    console.log("🧠 userJoin attempt:", user);
-    console.log("🚫 activeUsers currently:", [...activeUsers]);
+    const { user, avatar } = JSON.parse(tweet);
 
     if (activeUsers.has(user)) {
-      console.log("❌ Username taken:", user);
       socket.emit("usernameTaken");
       return;
     }
 
     // store user in session
     req.session.username = user;
+    req.session.avatar = avatar || "";
     req.session.save();
 
     activeUsers.add(user);
 
-    socket.emit("userJoined", user);
+    socket.emit("userJoined", {
+      user,
+      avatar: req.session.avatar || "",
+    });
     socket.emit("tweetHistory", tweets);
 
     //newUser(user, socket, io);
@@ -81,6 +80,7 @@ io.on("connection", (socket) => {
     const cleanTweet = {
       user: tweetText.user,
       tweet: xss(tweetText.tweet),
+      avatar: socket.request.session.avatar || "",
     };
 
     tweets.push(cleanTweet);
@@ -92,8 +92,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("logout", () => {
-    socket.request.session.username = null;
-    socket.request.session.save();
+    socket.request.session.destroy((err) => {
+      if (err) {
+        console.error("❌ Failed to destroy session:", err);
+      } else {
+        console.log("✅ Session destroyed");
+      }
+    });
   });
 });
 
