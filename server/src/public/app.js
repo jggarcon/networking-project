@@ -8,7 +8,7 @@ const form = q("#form");
 const userDiv = q("#user");
 const tweetsDiv = q("#tweets");
 const txtUser = q("#txtUser");
-const btnLeave = q("#btnLeave");
+const btnLogout = q("#btnLogout");
 const btnTweet = q("#btnTweet");
 const txtTweet = q("#txtTweet");
 const tweetcontainer = q("#tweetcontainer");
@@ -17,27 +17,16 @@ const now = new Date().toISOString();
 let userList = [];
 let currentUser = "";
 
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
-  currentUser = txtUser.value.trim();
-
+window.onload = () => {
   socket = io();
 
-  socket.emit(
-    "userJoin",
-    JSON.stringify({
-      user: txtUser.value.trim(),
-    })
-  );
-
-  socket.on("userJoined", () => {
-    userDiv.classList.toggle("hide");
-    tweetsDiv.classList.toggle("hide");
-  });
-
-  socket.on("chatMessageBroadcast", (tweet) => {
-    const userMsg = JSON.parse(tweet).tweetText;
-    displayTweet(userMsg);
+  // Ask server if a session exists
+  socket.on("userJoined", (user) => {
+    if (user) {
+      currentUser = user;
+      userDiv.classList.add("hide");
+      tweetsDiv.classList.remove("hide");
+    }
   });
 
   socket.on("tweetHistory", (allTweets) => {
@@ -45,9 +34,31 @@ form.addEventListener("submit", (e) => {
       displayTweet(tweetObj);
     });
   });
+
+  socket.on("chatMessageBroadcast", (tweet) => {
+    const userMsg = JSON.parse(tweet).tweetText;
+    displayTweet(userMsg);
+  });
+};
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  currentUser = txtUser.value.trim();
+
+  if (!socket || socket.disconnected) {
+    socket = io(); // reconnect
+    setupSocketListeners(); // re-attach listeners
+  }
+
+  socket.emit(
+    "userJoin",
+    JSON.stringify({
+      user: currentUser,
+    })
+  );
 });
 
-btnLeave.onclick = (e) => {
+btnLogout.onclick = (e) => {
   userDiv.classList.toggle("hide");
   tweetsDiv.classList.toggle("hide");
   txtUser.value = "";
@@ -134,4 +145,32 @@ function displayTweet(userMsg) {
       </div>
     </div>
     ` + tweetcontainer.innerHTML;
+}
+
+//const btnLogout = document.getElementById("btnLogout");
+
+btnLogout.addEventListener("click", () => {
+  socket.emit("logout");
+
+  userDiv.classList.remove("hide");
+  tweetsDiv.classList.add("hide");
+  txtUser.value = "";
+});
+
+function setupSocketListeners() {
+  socket.on("userJoined", (user) => {
+    userDiv.classList.add("hide");
+    tweetsDiv.classList.remove("hide");
+  });
+
+  socket.on("tweetHistory", (allTweets) => {
+    allTweets.forEach((tweetObj) => {
+      displayTweet(tweetObj);
+    });
+  });
+
+  socket.on("chatMessageBroadcast", (tweet) => {
+    const userMsg = JSON.parse(tweet).tweetText;
+    displayTweet(userMsg);
+  });
 }

@@ -7,7 +7,19 @@ const xss = require("xss");
 
 const PORT = process.env.PORT || 2000;
 
+const session = require("express-session");
+
+const sessionMiddleware = session({
+  secret: "secret",
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 600000 },
+});
+
+app.use(sessionMiddleware);
+
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/static", express.static(path.join(__dirname, "..", "static")));
 
 app.use(
   "/css",
@@ -22,35 +34,56 @@ const tweets = [];
 
 //let users = [];
 
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, {}, next);
+});
+
 io.on("connection", (socket) => {
-  // when a new user joins
+  const req = socket.request;
+  console.log("🧠 Session on connect:", req.session);
+
+  // 🔁 If the user is already stored in session, auto-log them in
+  if (req.session.username) {
+    const user = req.session.username;
+    socket.emit("userJoined", user);
+    socket.emit("tweetHistory", tweets);
+  }
+
+  // 🆕 When a new user joins
   socket.on("userJoin", (tweet) => {
+    console.log("👉 userJoin received:", tweet);
     const { user } = JSON.parse(tweet);
 
-    // send the tweets history to the new user
+    // store user in session
+    req.session.username = user;
+    req.session.save(); // important: make sure it's saved
+
+    socket.emit("userJoined", user);
     socket.emit("tweetHistory", tweets);
 
-    newUser(user, socket, io);
+    //newUser(user, socket, io);
   });
 
-  // this say: when someone sends a new tweet
+  // when someone tweets
   socket.on("tweetText", (tweetText) => {
     tweetText = JSON.parse(tweetText);
 
-    // clean up the tweet using xss
     const cleanTweet = {
       user: tweetText.user,
       tweet: xss(tweetText.tweet),
     };
 
-    // store the tweet in memory
     tweets.push(cleanTweet);
 
-    // broadcast to all users
     io.sockets.emit(
       "chatMessageBroadcast",
       JSON.stringify({ tweetText: cleanTweet })
     );
+  });
+
+  socket.on("logout", () => {
+    socket.request.session.username = null;
+    socket.request.session.save();
   });
 });
 
